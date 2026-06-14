@@ -1,125 +1,135 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { useReadContract } from 'wagmi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import piggyBankArtifact from '@/abis/PiggyBank.json';
-
-const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3') as `0x${string}`;
+import { Lock, LockOpen, Timer } from 'lucide-react';
+import { useVaultData } from '@/lib/useVaultData';
 
 interface CountdownTimerProps {
-  address: string;
+  address: `0x${string}`;
 }
 
+function getTimeComponents(diffSeconds: number) {
+  return {
+    days: Math.floor(diffSeconds / 86400),
+    hours: Math.floor((diffSeconds % 86400) / 3600),
+    minutes: Math.floor((diffSeconds % 3600) / 60),
+    seconds: Math.floor(diffSeconds % 60),
+  };
+}
+
+function pad(n: number) { return String(n).padStart(2, '0'); }
+
 export default function CountdownTimer({ address }: CountdownTimerProps) {
-  const { data: unlockTimeData, refetch: refetchUnlockTime } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: piggyBankArtifact.abi,
-    functionName: 'getUnlockTime',
-    args: address ? [address as `0x${string}`] : undefined,
-    query: {
-      enabled: !!address,
-    }
-  });
+  const { unlockTime, isLocked, hasLock } = useVaultData(address);
+  const [diff, setDiff] = useState(0);
 
-  const unlockTimestamp = unlockTimeData ? Number(unlockTimeData) : 0;
-  const [timeLeft, setTimeLeft] = useState<string>('Loading lock status...');
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  const tick = useCallback(() => {
+    if (!unlockTime) { setDiff(0); return; }
+    setDiff(Math.max(0, unlockTime - Math.floor(Date.now() / 1000)));
+  }, [unlockTime]);
 
-  // Keep smart contract state in sync across wallet flips
-  useEffect(() => {
-    if (address) {
-      refetchUnlockTime();
-    }
-  }, [address, refetchUnlockTime]);
+  useEffect(() => { tick(); const id = setInterval(tick, 1000); return () => clearInterval(id); }, [tick]);
 
-  // Core time calculation optimized into a reusable callback to avoid interval mounting lags
-  const calculateTimeLeft = useCallback(() => {
-    if (!unlockTimestamp || unlockTimestamp === 0) {
-      setTimeLeft('No Lock Active');
-      setIsUnlocked(false);
-      return;
-    }
-
-    const now = Math.floor(Date.now() / 1000);
-    const diff = unlockTimestamp - now;
-
-    if (diff <= 0) {
-      setTimeLeft('Vault Available');
-      setIsUnlocked(true);
-      return;
-    }
-
-    const days = Math.floor(diff / 86400);
-    const hours = Math.floor((diff % 86400) / 3600);
-    const minutes = Math.floor((diff % 3600) / 60);
-    const seconds = Math.floor(diff % 60);
-
-    const parts = [];
-    if (days > 0) parts.push(`${days}d`);
-    if (hours > 0 || days > 0) parts.push(`${hours}h`);
-    parts.push(`${minutes}m`);
-    parts.push(`${seconds}s`);
-
-    setTimeLeft(parts.join(' '));
-    setIsUnlocked(false);
-  }, [unlockTimestamp]);
-
-  useEffect(() => {
-    // Run evaluation instantly on mount to defeat the 1-second interval execution lag
-    calculateTimeLeft();
-
-    const interval = setInterval(calculateTimeLeft, 1000);
-    return () => clearInterval(interval);
-  }, [calculateTimeLeft]);
+  const { days, hours, minutes, seconds } = getTimeComponents(diff);
+  const isUnlocked = hasLock && diff <= 0;
+  const noLock = !hasLock;
 
   return (
-    <Card className="glass-card border border-border/40 bg-card/60 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden relative group">
-      <div className="absolute -inset-px bg-gradient-to-tr from-cyan-500/10 to-emerald-500/10 opacity-0 group-hover:opacity-100 transition duration-500 rounded-2xl pointer-events-none" />
-      
-      <CardHeader className="pb-2">
-        <CardTitle className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-          <span>⏳</span> Lock Countdown
+    <Card className="glass-card lightning-edge-cyan card-hover border-[var(--border)] rounded-2xl overflow-hidden relative">
+      {/* Ambient orb */}
+      <div className="card-orb w-32 h-32 -bottom-8 -left-8 bg-cyan-500/15" />
+
+      <CardHeader className="pb-2 pt-5 px-5 relative z-10">
+        <CardTitle className="font-display text-lg font-bold tracking-tight text-[var(--foreground)] flex items-center gap-2">
+          <div className="w-7 h-7 rounded-lg bg-cyan-500/15 flex items-center justify-center">
+            <Timer className="w-3.5 h-3.5 text-cyan-400" />
+          </div>
+          Lock Countdown
+          <span className={`ml-auto text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+            noLock
+              ? 'bg-[var(--muted)] text-[var(--muted-foreground)] border-[var(--border)]'
+              : isUnlocked
+              ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+              : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+          }`}>
+            {noLock ? 'NO LOCK' : isUnlocked ? 'UNLOCKED' : 'LOCKED'}
+          </span>
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="text-center py-10 flex flex-col items-center justify-center min-h-[180px]">
+      <CardContent className="pt-2 pb-6 px-5 flex flex-col items-center justify-center min-h-[170px] gap-4 relative z-10">
         <AnimatePresence mode="wait">
-          <motion.p 
-            key={timeLeft}
-            initial={{ opacity: 0, scale: 0.98 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 1.02 }}
-            transition={{ duration: 0.15 }}
-            className={`text-4xl md:text-5xl font-mono font-black tracking-tight transition-colors tabular-nums ${
-              unlockTimestamp === 0 
-                ? 'text-muted-foreground/50'
-                : isUnlocked 
-                  ? 'text-emerald-400 drop-shadow-[0_0_15px_rgba(52,211,153,0.2)]' 
-                  : 'text-cyan-400 drop-shadow-[0_0_15px_rgba(34,211,238,0.15)]'
-            }`}
-          >
-            {timeLeft}
-          </motion.p>
+          {noLock ? (
+            <motion.div key="no-lock" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-2 text-center">
+              <div className="w-14 h-14 rounded-2xl bg-[var(--muted)] border border-[var(--border)] flex items-center justify-center">
+                <LockOpen className="w-6 h-6 text-[var(--muted-foreground)]" />
+              </div>
+              <p className="text-sm font-semibold text-[var(--muted-foreground)]">No lock configured yet</p>
+              <p className="text-xs text-[var(--muted-foreground)] opacity-60">Set a lock period before depositing</p>
+            </motion.div>
+
+          ) : isUnlocked ? (
+            <motion.div key="unlocked" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-2">
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2 }}
+                className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center"
+              >
+                <LockOpen className="w-6 h-6 text-emerald-400" />
+              </motion.div>
+              <p className="font-display text-2xl font-extrabold text-emerald-400">Vault Available</p>
+              <p className="text-xs font-medium text-emerald-400/60">Ready to withdraw</p>
+            </motion.div>
+
+          ) : (
+            <motion.div key="locked" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center gap-3 w-full">
+              {/* Pulsing lock icon */}
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/15 border border-cyan-500/20 flex items-center justify-center ring-pulse">
+                <Lock className="w-4 h-4 text-cyan-400" />
+              </div>
+
+              <div className="flex items-end gap-1 tabular-nums">
+                {days > 0 && (<><TimeSegment value={days} label="DAYS" /><Colon /></>)}
+                <TimeSegment value={hours} label="HRS" />
+                <Colon />
+                <TimeSegment value={minutes} label="MIN" />
+                <Colon />
+                <TimeSegment value={seconds} label="SEC" highlight />
+              </div>
+            </motion.div>
+          )}
         </AnimatePresence>
-        
-        {unlockTimestamp > 0 && !isUnlocked && (
-          <motion.p 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-xs font-medium text-muted-foreground mt-4 bg-muted/40 border border-border/30 px-3 py-1.5 rounded-full"
+
+        {hasLock && !isUnlocked && unlockTime > 0 && (
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            className="text-xs font-medium text-[var(--muted-foreground)] bg-[var(--muted)] border border-[var(--border)] px-3 py-1.5 rounded-full"
           >
-            Maturation Date: {new Date(unlockTimestamp * 1000).toLocaleString(undefined, {
-              weekday: 'short',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit'
+            Unlocks{' '}
+            {new Date(unlockTime * 1000).toLocaleString(undefined, {
+              weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit',
             })}
           </motion.p>
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function TimeSegment({ value, label, highlight }: { value: number; label: string; highlight?: boolean }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className={`font-mono font-extrabold leading-none text-4xl md:text-5xl ${highlight ? 'text-cyan-400' : 'text-[var(--foreground)]'}`}>
+        {pad(value)}
+      </span>
+      <span className="text-[9px] font-bold text-[var(--muted-foreground)] tracking-widest mt-1 uppercase">{label}</span>
+    </div>
+  );
+}
+
+function Colon() {
+  return (
+    <span className="font-mono font-black text-[var(--muted-foreground)] opacity-40 text-3xl md:text-4xl leading-none pb-5 mx-0.5">:</span>
   );
 }

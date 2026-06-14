@@ -1,20 +1,11 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  // Explicitly opt into Turbopack (default in Next.js 16) and silence the
+  // "webpack config but no turbopack config" error.
+  turbopack: {},
 
-const nextConfig: NextConfig = {
-  outputFileTracingRoot: __dirname, // Fixes the workspace root warning
-
-  webpack: (config) => {
-    // Fix for MetaMask SDK / React Native module issues
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      async_hooks: false,
-    };
-    return config;
-  },
-
-  // Recommended settings for web3 dApps
-  reactStrictMode: true,
-  swcMinify: true,
+  // Wallet libraries are client-only — keep out of the server bundle.
+  serverExternalPackages: [],
 };
 
-export default nextConfig;
+module.exports = nextConfig;

@@ -3,118 +3,291 @@
 import { useAccount } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from 'react';
+import { Sun, Moon, Download, Lock, ArrowDownToLine, ArrowUpFromLine, ScrollText } from 'lucide-react';
 
-// Clean absolute root imports for your modular components
 import AssetOverview from '@/components/AssetOverview';
 import CountdownTimer from '@/components/CountdownTimer';
 import DepositForm from '@/components/DepositForm';
 import LockForm from '@/components/LockForm';
 import WithdrawForm from '@/components/WithdrawForm';
 import TransactionHistory from '@/components/TransactionHistory';
+import VaultStatusBar from '@/components/VaultStatusBar';
+
+const TABS = [
+  { value: 'lock',     label: 'Lock',     Icon: Lock },
+  { value: 'deposit',  label: 'Deposit',  Icon: ArrowDownToLine },
+  { value: 'withdraw', label: 'Withdraw', Icon: ArrowUpFromLine },
+  { value: 'history',  label: 'Activity', Icon: ScrollText },
+] as const;
+
+function useDarkMode() {
+  const [isDark, setIsDark] = useState(true);
+  useEffect(() => { setIsDark(document.documentElement.classList.contains('dark')); }, []);
+  const toggle = () => {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.classList.toggle('dark', next);
+    try { localStorage.setItem('piggybank-theme', next ? 'dark' : 'light'); } catch {}
+  };
+  return { isDark, toggle };
+}
+
+function useInstallPrompt() {
+  const [prompt, setPrompt] = useState<any>(null);
+  useEffect(() => {
+    const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+  const install = async () => { if (!prompt) return; prompt.prompt(); await prompt.userChoice; setPrompt(null); };
+  return { canInstall: !!prompt, install };
+}
 
 export default function VaultDashboard() {
   const { address, isConnected } = useAccount();
+  const { isDark, toggle } = useDarkMode();
+  const { canInstall, install } = useInstallPrompt();
+  const [activeTab, setActiveTab] = useState<string>('lock');
 
   return (
-    <div className="min-h-screen bg-background text-foreground transition-colors pb-16">
-      <div className="max-w-7xl mx-auto px-6 pt-10">
-        
-        {/* Header Section */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
+    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)] pb-20 transition-colors duration-300">
+
+      {/* ── Ambient background orbs ── */}
+      <div className="pointer-events-none fixed inset-0 overflow-hidden -z-10" aria-hidden>
+        <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-purple-600/10 dark:bg-purple-500/8 blur-[140px]" />
+        <div className="absolute bottom-[-15%] right-[-5%] w-[600px] h-[600px] rounded-full bg-cyan-500/8 dark:bg-cyan-400/6 blur-[120px]" />
+        <div className="absolute top-[40%] left-[55%] w-[400px] h-[400px] rounded-full bg-indigo-500/6 dark:bg-indigo-400/5 blur-[90px]" />
+        {/* Fine global grid */}
+        <div
+          className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
+          style={{
+            backgroundImage: 'linear-gradient(rgba(147,51,234,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(147,51,234,0.4) 1px, transparent 1px)',
+            backgroundSize: '40px 40px',
+          }}
+        />
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 pt-6 md:pt-10">
+
+        {/* ── Header ── */}
+        <motion.header
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: 'easeOut' }}
-          className="flex justify-between items-center mb-16 pb-6 border-b border-border/40"
+          transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3 md:gap-4">
             <motion.div
-              animate={{ rotate: [0, 12, -12, 0] }}
-              transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
-              className="w-20 h-20 rounded-3xl bg-gradient-to-br from-purple-600 via-violet-600 to-cyan-400 flex items-center justify-center text-6xl shadow-xl shadow-purple-500/10 select-none"
+              animate={{ rotate: [0, 8, -8, 0] }}
+              transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
+              whileHover={{ rotate: 0, scale: 1.08 }}
+              className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-violet-500 to-cyan-500 flex items-center justify-center text-2xl md:text-3xl shadow-lg shadow-purple-500/25 select-none cursor-default shrink-0"
             >
               🐷
             </motion.div>
             <div>
-              <h1 className="text-5xl md:text-6xl font-black tracking-tighter bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">
+              <h1
+                className="font-display text-3xl md:text-4xl font-extrabold tracking-tight leading-none"
+                style={{
+                  backgroundImage: isDark
+                    ? 'linear-gradient(135deg, #c084fc 0%, #818cf8 50%, #67e8f9 100%)'
+                    : 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 50%, #0891b2 100%)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}
+              >
                 PIGGYBANK
               </h1>
-              <p className="text-purple-400 text-sm md:text-base font-bold tracking-wider mt-1">
-                v2 • FUTURE-PROOF SAVINGS VAULT
+              <p className="text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase text-[var(--muted-foreground)] mt-1">
+                v2 · Time-Locked Vault
               </p>
             </div>
           </div>
-          <ConnectButton showBalance={false} />
-        </motion.div>
 
-        {/* Locked Gateway (Wallet Disconnected State) */}
-        {!isConnected ? (
-          <div className="flex flex-col items-center justify-center min-h-[55vh] text-center max-w-xl mx-auto py-12">
-            <motion.div 
-              animate={{ scale: [1, 1.12, 1] }} 
-              transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
-              className="text-[120px] mb-8 select-none"
+          <div className="flex items-center gap-2 md:gap-3">
+            <AnimatePresence>
+              {canInstall && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.85 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.85 }}
+                  onClick={install}
+                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border border-[var(--border)] bg-[var(--muted)] text-[var(--foreground)] hover:bg-purple-500/10 hover:border-purple-500/30 transition-all cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Install
+                </motion.button>
+              )}
+            </AnimatePresence>
+
+            <motion.button
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.93 }}
+              onClick={toggle}
+              aria-label="Toggle dark mode"
+              className="w-9 h-9 md:w-10 md:h-10 rounded-xl border border-[var(--border)] bg-[var(--muted)] flex items-center justify-center text-[var(--muted-foreground)] hover:text-[var(--foreground)] hover:bg-purple-500/10 hover:border-purple-500/30 transition-all cursor-pointer"
             >
-              🔐
-            </motion.div>
-            <h2 className="text-4xl md:text-5xl font-black tracking-tight text-foreground mb-6 leading-tight">
-              Lock Today.<br />Thank Yourself Tomorrow.
-            </h2>
-            <p className="text-base md:text-lg text-muted-foreground leading-relaxed mb-10">
-              A beautiful, secure time-locked vault engineered for disciplined wealth building.
-            </p>
-            <ConnectButton />
+              <AnimatePresence mode="wait" initial={false}>
+                {isDark ? (
+                  <motion.span key="sun" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                    <Sun className="w-4 h-4" />
+                  </motion.span>
+                ) : (
+                  <motion.span key="moon" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.2 }}>
+                    <Moon className="w-4 h-4" />
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </motion.button>
+
+            <ConnectButton showBalance={false} />
           </div>
+        </motion.header>
+
+        {/* ── Disconnected landing ── */}
+        {!isConnected ? (
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+            className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-xl mx-auto py-12 gap-8"
+          >
+            <motion.div
+              animate={{ y: [0, -12, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+              className="relative"
+            >
+              <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl scale-150" />
+              <span className="relative text-8xl md:text-9xl select-none">🔐</span>
+            </motion.div>
+
+            <div className="space-y-4">
+              <h2 className="font-display text-4xl md:text-6xl font-extrabold tracking-tight text-[var(--foreground)] leading-[1.05]">
+                Lock Today.
+                <br />
+                <span style={{
+                  backgroundImage: isDark ? 'linear-gradient(135deg, #c084fc, #22d3ee)' : 'linear-gradient(135deg, #7c3aed, #0891b2)',
+                  WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                }}>
+                  Thank Yourself Tomorrow.
+                </span>
+              </h2>
+              <p className="text-sm md:text-base text-[var(--muted-foreground)] leading-relaxed max-w-sm mx-auto">
+                A time-locked savings vault that protects your assets from impulse — engineered for disciplined wealth building.
+              </p>
+            </div>
+
+            <div className="w-full max-w-sm glass-card lightning-edge rounded-2xl p-5 text-left space-y-3">
+              <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted-foreground)] mb-4 relative z-10">How it works</p>
+              {([
+                ['1', Lock, 'Set a lock duration'],
+                ['2', ArrowDownToLine, 'Deposit ETH or ERC-20 tokens'],
+                ['3', 'hourglass', null, 'Wait for the lock to expire'],
+                ['4', ArrowUpFromLine, 'Withdraw your savings'],
+              ] as any[]).map(([step, IconComp, , label], idx) => (
+                <motion.div
+                  key={step}
+                  initial={{ opacity: 0, x: -12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.3 + idx * 0.08 }}
+                  className="flex items-center gap-3 relative z-10"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-500 dark:text-purple-400 flex items-center justify-center text-[11px] font-black shrink-0">
+                    {step}
+                  </span>
+                  <span className="text-sm text-[var(--muted-foreground)] font-medium">{label ?? [
+                    'Set a lock duration', 'Deposit ETH or ERC-20 tokens', 'Wait for the lock to expire', 'Withdraw your savings'
+                  ][idx]}</span>
+                </motion.div>
+              ))}
+            </div>
+
+            <div className="flex flex-col items-center gap-3">
+              <ConnectButton />
+              {canInstall && (
+                <button onClick={install} className="flex items-center gap-2 text-xs font-semibold text-[var(--muted-foreground)] hover:text-[var(--foreground)] transition-colors cursor-pointer">
+                  <Download className="w-3.5 h-3.5" />
+                  Add to Home Screen
+                </button>
+              )}
+            </div>
+          </motion.div>
+
         ) : (
-          /* Active Dashboard Layout (Wallet Connected State) */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-            
-            {/* Sidebar Columns - Overview Metrics & History Panel */}
-            <div className="lg:col-span-5 space-y-8 w-full">
+          /* ── Connected dashboard ── */
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4 }}
+            className="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8 items-start"
+          >
+            {/* ── Sidebar ── */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.1 }}
+              className="lg:col-span-5 space-y-5 w-full"
+            >
               <AssetOverview address={address!} />
               <CountdownTimer address={address!} />
               <TransactionHistory address={address!} />
-            </div>
+            </motion.div>
 
-            {/* Main Action Forms Panel Area */}
-            <div className="lg:col-span-7 w-full">
-              <Tabs defaultValue="deposit" className="w-full">
-                <TabsList className="w-full grid grid-cols-4 bg-muted border border-border/40 p-1.5 mb-8 rounded-xl h-auto">
-                  <TabsTrigger value="deposit" className="font-bold py-2.5 rounded-lg cursor-pointer transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    Deposit
-                  </TabsTrigger>
-                  <TabsTrigger value="lock" className="font-bold py-2.5 rounded-lg cursor-pointer transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    Lock Time
-                  </TabsTrigger>
-                  <TabsTrigger value="withdraw" className="font-bold py-2.5 rounded-lg cursor-pointer transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    Withdraw
-                  </TabsTrigger>
-                  <TabsTrigger value="history" className="font-bold py-2.5 rounded-lg cursor-pointer transition-all data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                    Activity
-                  </TabsTrigger>
+            {/* ── Main panel ── */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="lg:col-span-7 w-full space-y-4"
+            >
+              {/* Vault status bar */}
+              <VaultStatusBar address={address!} />
+
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                {/* Step-progress tab bar */}
+                <TabsList
+                  className="w-full grid grid-cols-4 gap-1.5 p-1.5 mb-5 rounded-2xl h-auto"
+                  style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
+                >
+                  {TABS.map(({ value, label, Icon }, idx) => {
+                    const isActive = activeTab === value;
+                    return (
+                      <TabsTrigger
+                        key={value}
+                        value={value}
+                        className="relative flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 font-bold py-3 px-2 rounded-xl text-xs cursor-pointer transition-all text-[var(--muted-foreground)] data-[state=active]:text-white data-[state=active]:shadow-lg overflow-hidden"
+                        style={{ fontFamily: 'Syne, sans-serif' }}
+                      >
+                        {/* Active tab background glow */}
+                        {isActive && (
+                          <motion.span
+                            layoutId="tab-active-bg"
+                            className="absolute inset-0 rounded-xl"
+                            style={{ background: 'linear-gradient(135deg, #9333ea 0%, #6d28d9 60%, #4f46e5 100%)' }}
+                            transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                          />
+                        )}
+                        {/* Step number badge */}
+                        <span className={`relative z-10 w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-purple-500/15 text-purple-500 dark:text-purple-400'}`}>
+                          {idx + 1}
+                        </span>
+                        <Icon className="relative z-10 w-3.5 h-3.5 shrink-0" />
+                        <span className="relative z-10 leading-none hidden sm:inline">{label}</span>
+                      </TabsTrigger>
+                    );
+                  })}
                 </TabsList>
 
-                {/* Sub-form rendering contents */}
-                <TabsContent value="deposit" className="outline-none mt-0">
-                  <DepositForm />
-                </TabsContent>
-                
-                <TabsContent value="lock" className="outline-none mt-0">
-                  <LockForm />
-                </TabsContent>
-                
-                <TabsContent value="withdraw" className="outline-none mt-0">
-                  <WithdrawForm />
-                </TabsContent>
-                
-                <TabsContent value="history" className="outline-none mt-0">
-                  {/* Preserving your exact fullView tracking prop pass */}
-                  <TransactionHistory address={address!} fullView />
-                </TabsContent>
+                <TabsContent value="lock"     className="outline-none mt-0"><LockForm /></TabsContent>
+                <TabsContent value="deposit"  className="outline-none mt-0"><DepositForm /></TabsContent>
+                <TabsContent value="withdraw" className="outline-none mt-0"><WithdrawForm /></TabsContent>
+                <TabsContent value="history"  className="outline-none mt-0"><TransactionHistory address={address!} fullView /></TabsContent>
               </Tabs>
-            </div>
-
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </div>
     </div>

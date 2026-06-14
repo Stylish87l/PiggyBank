@@ -1,95 +1,129 @@
 'use client';
 
-import { useEffect } from 'react';
-import { useReadContract } from 'wagmi';
 import { formatEther, zeroAddress } from 'viem';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import piggyBankArtifact from '@/abis/PiggyBank.json';
-
-// Pulled securely from your root .env.local file
-const CONTRACT_ADDRESS = (process.env.NEXT_PUBLIC_CONTRACT_ADDRESS || '0x5FbDB2315678afecb367f032d93F642f64180aa3') as `0x${string}`;
+import { Skeleton } from '@/components/ui/skeleton';
+import { TrendingUp, Wifi, WifiOff } from 'lucide-react';
+import { useVaultData } from '@/lib/useVaultData';
+import { useLivePrices } from '@/lib/useLivePrices';
+import { getTokenByAddress } from '@/lib/constants';
 
 interface AssetOverviewProps {
-  address: string;
+  address: `0x${string}`;
 }
 
 export default function AssetOverview({ address }: AssetOverviewProps) {
-  // Wagmi v2 contract read hook with explicit query execution conditional checks
-  const { data: ethBalance, refetch: refetchBalance } = useReadContract({
-    address: CONTRACT_ADDRESS,
-    abi: piggyBankArtifact.abi,
-    functionName: 'getBalance',
-    args: address ? [address as `0x${string}`, zeroAddress] : undefined,
-    query: {
-      enabled: !!address, // Prevent running queries against undefined addresses
-    }
-  });
+  const { ethBalance, activeAssets, isLoading } = useVaultData(address);
+  const { toUsd, isStale } = useLivePrices();
 
-  // Re-fetch user contract state whenever their wallet context changes
-  useEffect(() => {
-    if (address) {
-      refetchBalance();
-    }
-  }, [address, refetchBalance]);
+  const ethAmount = parseFloat(formatEther(ethBalance));
+  const ethUsd = toUsd('ethereum', ethAmount);
 
-  // Safe big-integer format fallback string parsing
-  const eth = ethBalance ? formatEther(ethBalance as bigint) : '0.00';
-  
-  // Dynamic mock calculation representing asset standard fiat evaluation conversion
-  const usdValue = (parseFloat(eth) * 2450).toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+  const formattedEth = ethAmount.toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+  const formattedUsd = ethUsd.toLocaleString(undefined, { style: 'currency', currency: 'USD', minimumFractionDigits: 2 });
 
   return (
-    <motion.div 
-      initial={{ opacity: 0, y: 20 }} 
-      animate={{ opacity: 1, y: 0 }} 
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
       className="w-full"
     >
-      <Card className="glass-card border border-border/40 bg-card/60 backdrop-blur-xl shadow-2xl rounded-2xl overflow-hidden relative group">
-        {/* Modern decorative accent gradient glow layer */}
-        <div className="absolute -inset-px bg-gradient-to-tr from-purple-500/10 to-indigo-500/10 opacity-0 group-hover:opacity-100 transition duration-500 rounded-2xl pointer-events-none" />
-        
-        <CardHeader className="pb-4">
-          <CardTitle className="text-xl font-black tracking-tight text-foreground flex items-center gap-2">
-            <span>📊</span> Total Portfolio
+      <Card className="glass-card lightning-edge card-hover border-[var(--border)] rounded-2xl overflow-hidden relative">
+        {/* Ambient orb */}
+        <div className="card-orb w-40 h-40 -top-10 -right-10 bg-purple-500/15" />
+
+        <CardHeader className="pb-2 pt-5 px-5 relative z-10">
+          <CardTitle className="font-display text-lg font-bold tracking-tight text-[var(--foreground)] flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center">
+                <TrendingUp className="w-3.5 h-3.5 text-purple-400" />
+              </div>
+              Total Portfolio
+            </div>
+            <span className={`flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+              isStale
+                ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            }`}>
+              {isStale ? <WifiOff className="w-2.5 h-2.5" /> : <span className="live-dot" />}
+              {isStale ? 'CACHED' : 'LIVE'}
+            </span>
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="space-y-6">
-          <div>
-            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Total Value Locked</p>
-            <p className="text-5xl font-black tracking-tighter mt-2 text-foreground truncate">
-              {eth} <span className="text-2xl font-bold bg-gradient-to-r from-purple-400 to-indigo-400 bg-clip-text text-transparent">ETH</span>
+        <CardContent className="space-y-4 px-5 pb-5 relative z-10">
+          <div className="py-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-[var(--muted-foreground)]">
+              Total Value Locked
             </p>
-            <p className="text-xl font-bold text-emerald-400 mt-1">${usdValue}</p>
+            {isLoading ? (
+              <div className="mt-2 space-y-2">
+                <Skeleton className="h-10 w-44 rounded-lg" />
+                <Skeleton className="h-5 w-24 rounded-md" />
+              </div>
+            ) : (
+              <>
+                <p className="text-4xl font-display font-extrabold tracking-tight mt-1.5 text-[var(--foreground)] tabular-nums">
+                  {formattedEth}{' '}
+                  <span style={{
+                    background: 'linear-gradient(135deg, #9333ea, #818cf8)',
+                    WebkitBackgroundClip: 'text', backgroundClip: 'text', WebkitTextFillColor: 'transparent',
+                  }} className="text-lg font-bold">
+                    ETH
+                  </span>
+                </p>
+                <p className="text-base font-bold text-emerald-400 mt-0.5 tabular-nums font-mono">{formattedUsd}</p>
+              </>
+            )}
           </div>
 
-          <div className="pt-6 border-t border-border/40">
-            <Badge variant="secondary" className="mb-4 font-bold tracking-wide bg-purple-500/10 text-purple-400 border border-purple-500/20">
-              Multi-Asset Enabled
-            </Badge>
-            
-            <div className="bg-muted/40 border border-border/20 rounded-xl p-4 transition-all hover:bg-muted/60">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-indigo-500 flex items-center justify-center text-2xl font-black text-white shadow-md shadow-purple-500/10 select-none">
-                  Ξ
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-base font-bold text-foreground">Ethereum</p>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {eth} ETH <span className="text-xs text-muted-foreground/60">≈ ${usdValue}</span>
-                  </p>
-                </div>
-              </div>
+          <div className="pt-3 border-t border-[var(--border)] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <Badge variant="secondary" className="font-bold tracking-wide text-[10px] bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2.5">
+                Multi-Asset Enabled
+              </Badge>
+              {activeAssets.length > 0 && (
+                <span className="text-xs text-[var(--muted-foreground)] font-medium">
+                  {activeAssets.length} asset{activeAssets.length !== 1 ? 's' : ''} held
+                </span>
+              )}
             </div>
+
+            <AssetRow symbol="ETH" icon="Ξ" iconBg="from-purple-600 to-indigo-500" amount={formattedEth} usdValue={formattedUsd} isLoading={isLoading} />
+
+            {activeAssets
+              .filter((a) => a.toLowerCase() !== zeroAddress.toLowerCase())
+              .map((assetAddr) => {
+                const token = getTokenByAddress(assetAddr);
+                return (
+                  <AssetRow key={assetAddr} symbol={token?.symbol ?? 'ERC-20'} icon={token?.symbol.slice(0, 1) ?? '?'} iconBg="from-slate-500 to-slate-400" amount="—" usdValue="—" isLoading={false} />
+                );
+              })}
           </div>
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+function AssetRow({ symbol, icon, iconBg, amount, usdValue, isLoading }: {
+  symbol: string; icon: string; iconBg: string; amount: string; usdValue: string; isLoading: boolean;
+}) {
+  return (
+    <div className="bg-[var(--muted)] border border-[var(--border)] rounded-xl p-3 flex items-center gap-3 hover:border-purple-500/30 transition-colors">
+      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${iconBg} flex items-center justify-center text-base font-black text-white shadow-md shrink-0`}>
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-[var(--foreground)]">{symbol}</p>
+        {isLoading
+          ? <Skeleton className="h-3 w-28 mt-1 rounded" />
+          : <p className="text-xs text-[var(--muted-foreground)] font-mono tabular-nums">{amount} <span className="opacity-50">≈ {usdValue}</span></p>
+        }
+      </div>
+    </div>
   );
 }
