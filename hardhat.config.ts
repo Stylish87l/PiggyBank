@@ -31,8 +31,15 @@ export default defineConfig({
     sepolia: {
       type: "http",
       chainType: "l1",
-      url: configVariable("SEPOLIA_RPC_URL"),
+      // Hardhat 3 native lazy-loading variables
+      url: configVariable("NEXT_PUBLIC_RPC_SEPOLIA"), 
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
+    },
+  },
+  verify: {
+    etherscan: {
+      // Use process.env directly here to prevent the format.includes TypeError
+      apiKey: process.env.ETHERSCAN_API_KEY || "PLACEHOLDER_KEY",
     },
   },
 });

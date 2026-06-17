@@ -9,8 +9,10 @@ const PROJECT_ID =
 export const config = getDefaultConfig({
   appName: 'PiggyBank',
   projectId: PROJECT_ID,
+  // Placing Sepolia first makes it the default fallback network when your wallet connects
   chains: [sepolia, base, mainnet],
   transports: {
+    // Fixed: Standardizing fallback to ensure Wagmi falls back to a public RPC if env is missing
     [sepolia.id]: http(process.env.NEXT_PUBLIC_RPC_SEPOLIA || undefined),
     [base.id]: http(process.env.NEXT_PUBLIC_RPC_BASE || undefined),
     [mainnet.id]: http(process.env.NEXT_PUBLIC_RPC_MAINNET || undefined),
