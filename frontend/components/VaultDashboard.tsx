@@ -79,12 +79,12 @@ export default function VaultDashboard() {
           className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
           <div className="flex items-center gap-3 md:gap-4">
-            <motion.div
-              animate={{ rotate: [0, 8, -8, 0] }}
-              transition={{ repeat: Infinity, duration: 8, ease: 'easeInOut' }}
-              whileHover={{ rotate: 0, scale: 1.08 }}
-              className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-600 via-violet-500 to-cyan-500 flex items-center justify-center text-2xl md:text-3xl shadow-lg shadow-purple-500/25 select-none cursor-default shrink-0"
-            >
+            <motion.header
+  initial={false}
+  animate={{ opacity: 1, y: 0 }}
+  transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+  className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
+>
               🐷
             </motion.div>
             <div>
@@ -150,7 +150,7 @@ export default function VaultDashboard() {
         {/* ── Disconnected landing ── */}
         {!isConnected ? (
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={false}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-xl mx-auto py-12 gap-8"
