@@ -40,17 +40,33 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        {/* Dark mode script — runs before paint to avoid flash */}
+        {/* Mobile-Safe Dark mode script — wraps API features inside defensive feature flags */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var stored = localStorage.getItem('piggybank-theme');
-                  var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  var isDark = stored ? stored === 'dark' : prefersDark;
-                  if (isDark) document.documentElement.classList.add('dark');
-                } catch(e) {}
+                  var isDark = true; // Fallback default value matching your dark UI theme
+                  var hasLocalStorage = typeof window !== 'undefined' && window.localStorage;
+                  
+                  if (hasLocalStorage) {
+                    var stored = localStorage.getItem('piggybank-theme');
+                    if (stored) {
+                      isDark = stored === 'dark';
+                    } else if (window.matchMedia) {
+                      isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    }
+                  }
+                  
+                  if (isDark) {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch(e) {
+                  // Absolute fallback to ensure layout doesn't break if API access is restricted
+                  document.documentElement.classList.add('dark');
+                }
               })();
             `,
           }}
