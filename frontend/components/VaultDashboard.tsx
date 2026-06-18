@@ -24,12 +24,20 @@ const TABS = [
 
 function useDarkMode() {
   const [isDark, setIsDark] = useState(true);
-  useEffect(() => { setIsDark(document.documentElement.classList.contains('dark')); }, []);
+  
+  useEffect(() => { 
+    if (typeof window !== 'undefined' && document.documentElement) {
+      setIsDark(document.documentElement.classList.contains('dark')); 
+    }
+  }, []);
+
   const toggle = () => {
     const next = !isDark;
     setIsDark(next);
-    document.documentElement.classList.toggle('dark', next);
-    try { localStorage.setItem('piggybank-theme', next ? 'dark' : 'light'); } catch {}
+    if (typeof window !== 'undefined' && document.documentElement) {
+      document.documentElement.classList.toggle('dark', next);
+      try { localStorage.setItem('piggybank-theme', next ? 'dark' : 'light'); } catch {}
+    }
   };
   return { isDark, toggle };
 }
@@ -37,6 +45,7 @@ function useDarkMode() {
 function useInstallPrompt() {
   const [prompt, setPrompt] = useState<any>(null);
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const handler = (e: Event) => { e.preventDefault(); setPrompt(e); };
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
@@ -59,7 +68,7 @@ export default function VaultDashboard() {
         <div className="absolute top-[-20%] left-[-10%] w-[700px] h-[700px] rounded-full bg-purple-600/10 dark:bg-purple-500/8 blur-[140px]" />
         <div className="absolute bottom-[-15%] right-[-5%] w-[600px] h-[600px] rounded-full bg-cyan-500/8 dark:bg-cyan-400/6 blur-[120px]" />
         <div className="absolute top-[40%] left-[55%] w-[400px] h-[400px] rounded-full bg-indigo-500/6 dark:bg-indigo-400/5 blur-[90px]" />
-        {/* Fine global grid */}
+        
         <div
           className="absolute inset-0 opacity-[0.025] dark:opacity-[0.04]"
           style={{
@@ -78,12 +87,12 @@ export default function VaultDashboard() {
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
-          {/* Logo Section */}
+          {/* Restored Purple App Icon Block */}
           <div className="flex items-center gap-3 md:gap-4">
             <motion.div 
-              animate={{ scale: [1, 1.15, 1] }}
-              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
-              className="text-3xl md:text-4xl filter drop-shadow-md select-none"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20 text-2xl md:text-3xl select-none"
             >
               🐷
             </motion.div>
@@ -107,7 +116,6 @@ export default function VaultDashboard() {
             </div>
           </div>
 
-          {/* Action Utilities Buttons */}
           <div className="flex items-center gap-2 md:gap-3">
             <AnimatePresence>
               {canInstall && (
@@ -244,11 +252,9 @@ export default function VaultDashboard() {
               transition={{ duration: 0.5, delay: 0.15 }}
               className="lg:col-span-7 w-full space-y-4"
             >
-              {/* Vault status bar */}
               <VaultStatusBar address={address!} />
 
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                {/* Step-progress tab bar */}
                 <TabsList
                   className="w-full grid grid-cols-4 gap-1.5 p-1.5 mb-5 rounded-2xl h-auto"
                   style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}
@@ -262,7 +268,6 @@ export default function VaultDashboard() {
                         className="relative flex flex-col sm:flex-row items-center gap-1 sm:gap-1.5 font-bold py-3 px-2 rounded-xl text-xs cursor-pointer transition-all text-[var(--muted-foreground)] data-[state=active]:text-white data-[state=active]:shadow-lg overflow-hidden"
                         style={{ fontFamily: 'Syne, sans-serif' }}
                       >
-                        {/* Active tab background glow */}
                         {isActive && (
                           <motion.span
                             layoutId="tab-active-bg"
@@ -271,7 +276,6 @@ export default function VaultDashboard() {
                             transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                           />
                         )}
-                        {/* Step number badge */}
                         <span className={`relative z-10 w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-purple-500/15 text-purple-500 dark:text-purple-400'}`}>
                           {idx + 1}
                         </span>
