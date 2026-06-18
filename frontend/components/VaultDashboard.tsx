@@ -78,10 +78,15 @@ export default function VaultDashboard() {
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
+          {/* Logo Section */}
           <div className="flex items-center gap-3 md:gap-4">
-            <div className="text-2xl md:text-3xl">
+            <motion.div 
+              animate={{ scale: [1, 1.15, 1] }}
+              transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+              className="text-3xl md:text-4xl filter drop-shadow-md select-none"
+            >
               🐷
-            </div>
+            </motion.div>
             <div>
               <h1
                 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight leading-none"
@@ -102,6 +107,7 @@ export default function VaultDashboard() {
             </div>
           </div>
 
+          {/* Action Utilities Buttons */}
           <div className="flex items-center gap-2 md:gap-3">
             <AnimatePresence>
               {canInstall && (
