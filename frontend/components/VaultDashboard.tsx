@@ -79,14 +79,9 @@ export default function VaultDashboard() {
           className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
           <div className="flex items-center gap-3 md:gap-4">
-            <motion.header
-  initial={false}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
-  className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
->
+            <div className="text-2xl md:text-3xl">
               🐷
-            </motion.div>
+            </div>
             <div>
               <h1
                 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight leading-none"
