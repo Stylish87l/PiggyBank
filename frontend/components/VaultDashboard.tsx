@@ -5,7 +5,7 @@ import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { Sun, Moon, Download, Lock, ArrowDownToLine, ArrowUpFromLine, ScrollText } from 'lucide-react';
+import { Sun, Moon, Download, Lock, ArrowDownToLine, ArrowUpFromLine, ScrollText, Hourglass } from 'lucide-react';
 
 import AssetOverview from '@/components/AssetOverview';
 import CountdownTimer from '@/components/CountdownTimer';
@@ -87,15 +87,17 @@ export default function VaultDashboard() {
           transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
           className="flex justify-between items-center mb-10 md:mb-14 pb-5 border-b border-[var(--border)]"
         >
-          {/* Restored Purple App Icon Block */}
+          {/* Restored App Icon Block with Stable Layout Animations */}
           <div className="flex items-center gap-3 md:gap-4">
-            <motion.div 
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20 text-2xl md:text-3xl select-none"
-            >
-              🐷
-            </motion.div>
+            <div className="w-12 h-12 md:w-14 md:h-14 rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/20 text-2xl md:text-3xl select-none">
+              <motion.span 
+                animate={{ scale: [1, 1.12, 1] }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: "easeInOut" }}
+                className="inline-block"
+              >
+                🐷
+              </motion.span>
+            </div>
             <div>
               <h1
                 className="font-display text-3xl md:text-4xl font-extrabold tracking-tight leading-none"
@@ -159,9 +161,9 @@ export default function VaultDashboard() {
         {/* ── Disconnected landing ── */}
         {!isConnected ? (
           <motion.div
-            initial={false}
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1, ease: [0.23, 1, 0.32, 1] }}
+            transition={{ duration: 0.5, delay: 0.1 }}
             className="flex flex-col items-center justify-center min-h-[60vh] text-center max-w-xl mx-auto py-12 gap-8"
           >
             <motion.div
@@ -189,27 +191,27 @@ export default function VaultDashboard() {
               </p>
             </div>
 
+            {/* Fixed How it Works execution arrays */}
             <div className="w-full max-w-sm glass-card lightning-edge rounded-2xl p-5 text-left space-y-3">
               <p className="text-xs font-bold uppercase tracking-widest text-[var(--muted-foreground)] mb-4 relative z-10">How it works</p>
-              {([
-                ['1', Lock, 'Set a lock duration'],
-                ['2', ArrowDownToLine, 'Deposit ETH or ERC-20 tokens'],
-                ['3', 'hourglass', null, 'Wait for the lock to expire'],
-                ['4', ArrowUpFromLine, 'Withdraw your savings'],
-              ] as any[]).map(([step, IconComp, , label], idx) => (
+              {[
+                { step: '1', Icon: Lock, label: 'Set a lock duration' },
+                { step: '2', Icon: ArrowDownToLine, label: 'Deposit ETH or ERC-20 tokens' },
+                { step: '3', Icon: Hourglass, label: 'Wait for the lock to expire' },
+                { step: '4', Icon: ArrowUpFromLine, label: 'Withdraw your savings' }
+              ].map(({ step, Icon, label }, idx) => (
                 <motion.div
                   key={step}
                   initial={{ opacity: 0, x: -12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.3 + idx * 0.08 }}
+                  transition={{ delay: 0.1 + idx * 0.08 }}
                   className="flex items-center gap-3 relative z-10"
                 >
                   <span className="w-6 h-6 rounded-lg bg-purple-500/15 border border-purple-500/25 text-purple-500 dark:text-purple-400 flex items-center justify-center text-[11px] font-black shrink-0">
                     {step}
                   </span>
-                  <span className="text-sm text-[var(--muted-foreground)] font-medium">{label ?? [
-                    'Set a lock duration', 'Deposit ETH or ERC-20 tokens', 'Wait for the lock to expire', 'Withdraw your savings'
-                  ][idx]}</span>
+                  <Icon className="w-3.5 h-3.5 text-purple-400/70 shrink-0" />
+                  <span className="text-sm text-[var(--muted-foreground)] font-medium">{label}</span>
                 </motion.div>
               ))}
             </div>
